@@ -1,0 +1,20 @@
+{
+  "name": "codex-unified-tools",
+  "interface": {
+    "displayName": "Codex 额度与恢复"
+  },
+  "plugins": [
+    {
+      "name": "codex-quota-unified",
+      "source": {
+        "source": "local",
+        "path": "./plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

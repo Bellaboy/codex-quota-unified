@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "quota-unified": {
+      "type": "stdio",
+      "command": "./bin/CodexQuotaUnified.exe",
+      "args": [
+        "--mcp"
+      ],
+      "cwd": "./"
+    }
+  }
+}

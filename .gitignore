@@ -1,0 +1,17 @@
+upstream/
+prepare.py
+dist/
+verification/*
+!verification/sources.json
+!verification/summary.json
+plugin/runtime.json
+**/bin/
+**/obj/
+**/__pycache__/
+*.user
+*.log
+recovery-runtime.json
+bridge-runtime.json
+recovery-state.json
+recovery-status.json
+status.json

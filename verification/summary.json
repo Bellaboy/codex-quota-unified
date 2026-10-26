@@ -1,0 +1,39 @@
+{
+  "mcpLifecycle": {
+    "passed": true,
+    "eofExitWithinSeconds": 5,
+    "survivingChildren": 0
+  },
+  "limits": [
+    "Recovery dispatch tested using synthetic quota-failure states; live quota was not deliberately exhausted.",
+    "Full application restart was not performed during the active task.",
+    "UI alignment verified using native window geometry and rendered ink, without a new desktop screenshot."
+  ],
+  "date": "2026-10-27",
+  "recoveryTests": {
+    "passed": 33,
+    "realMessagesSentByTests": 0,
+    "failed": 0
+  },
+  "live": {
+    "oldWidgetProcesses": 0,
+    "passed": true,
+    "overlay": {
+      "y": 10,
+      "dpi": 96,
+      "width": 276,
+      "x": 402,
+      "height": 26
+    },
+    "quotaReadIntervalsSeconds": [
+      30.1365743,
+      29.9209021
+    ],
+    "singleRecoveryWorker": true
+  },
+  "nativeTests": {
+    "failed": 0,
+    "passed": 34
+  },
+  "platform": "Windows x64"
+}

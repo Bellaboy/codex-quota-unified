@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "codex-quota-unified",
+  "version": "1.0.0",
+  "description": "Windows Codex 顶栏额度与恢复自动续跑，统一30秒额度检测。",
+  "author": {
+    "name": "Bellaboy; upstream contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "quota",
+    "battery",
+    "windows"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Codex 额度与恢复",
+        "shortDescription": "30秒额度检测 · 顶栏显示 · 恢复续跑",
+        "longDescription": "保留已调整的顶栏位置，额度恢复后继续原任务，跨进程互斥与持久化去重。",
+        "developerName": "Bellaboy",
+        "category": "Productivity",
+        "logo": "./assets/icon.svg",
+        "composerIcon": "./assets/icon.svg"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "glass": {
+    "url": "https://github.com/1435661587/codex-quota-battery",
+    "revision": "8322f6f95519248bb24b1c5570f14e1c14fe9fa6",
+    "version": "2.2.2"
+  },
+  "toolbar": {
+    "url": "https://github.com/xiaoxuw/codex-quota-battery",
+    "revision": "4218b18f414d47b765a428e15a11e853b30d871b",
+    "tag": "v1.1.1"
+  },
+  "localChanges": [
+    "exact requested recovery prompt",
+    "named monitor mutex before state load",
+    "persistent claim before dispatch",
+    "confirmed Help menu anchor +80 DIP x / +5 DIP y"
+  ]
+}
