@@ -87,6 +87,28 @@ class RuntimeRefreshTests(unittest.TestCase):
         self.assertEqual(got['pipe'],'fresh-plugin-endpoint');self.assertEqual(got['callerThreadId'],'fresh-caller')
 
 class UpgradeLifecycleTests(unittest.TestCase):
+    def test_desktop_restart_refreshes_pipe_without_replacing_known_caller(self):
+        from recovery_monitor import publish_runtime, read_json, atomic
+        with tempfile.TemporaryDirectory() as td:
+            data=Path(td)
+            atomic(data/'bridge-runtime.json', {'pipe':'old-endpoint','callerThreadId':'known-caller'})
+            with patch.dict(os.environ, {'CODEX_APP_TOOLS_PIPE_PATH':'current-endpoint'}, clear=True):
+                with patch('pathlib.Path.home',return_value=data):
+                    publish_runtime({},data)
+            got=read_json(data/'bridge-runtime.json')
+            self.assertEqual(got['pipe'],'current-endpoint')
+            self.assertEqual(got['callerThreadId'],'known-caller')
+    def test_missing_caller_is_not_inferred_and_cannot_connect(self):
+        from recovery_monitor import publish_runtime, read_json
+        with tempfile.TemporaryDirectory() as td:
+            data=Path(td)
+            with patch.dict(os.environ, {'CODEX_APP_TOOLS_PIPE_PATH':'current-endpoint'}, clear=True):
+                with patch('pathlib.Path.home',return_value=data):
+                    publish_runtime({},data)
+                    got=read_json(data/'bridge-runtime.json')
+                    self.assertNotIn('callerThreadId',got)
+                    with self.assertRaisesRegex(RuntimeError,'desktop_caller_identity_unavailable'):
+                        AppTools(got).open()
     def test_new_cache_handoff_reaches_already_running_worker(self):
         from recovery_monitor import load_runtime, publish_runtime, atomic
         with tempfile.TemporaryDirectory() as td:

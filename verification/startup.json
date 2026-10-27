@@ -1,23 +1,24 @@
 {
-  "declaredServers": [
-    "quota-unified"
-  ],
-  "serverListed": true,
-  "toolNames": [
-    "get_quota_status"
-  ],
-  "mcpHosted": true,
-  "recoveryStatus": "monitoring",
-  "quotaPollingSeconds": 30,
-  "bounds": {
-    "X": 402,
-    "Y": 10,
-    "Width": 276,
-    "Height": 26
+  "nativeTests": 34,
+  "realMessagesSentByTests": 0,
+  "recoveryRegressionTests": 35,
+  "pluginAutoLoadedAfterFullDesktopRestart": true,
+  "fullDesktopRestartAfterRecoveryFixVerified": false,
+  "packageVersion": "1.0.2",
+  "missingThreadEnvironmentConfirmed": true,
+  "desktopObservationNativeVersion": "1.0.1",
+  "afterWorkerHotfix": {
+    "existingCallerPreserved": true,
+    "singleRecoveryWorker": true,
+    "recoveryStatus": "monitoring",
+    "currentDesktopPipeMatched": true
   },
-  "freshQuotaRead": true,
-  "passed": true,
-  "packageVersion": "1.0.1",
-  "verification": "official Codex loader with an ephemeral session; no model turn",
-  "fullDesktopRestartVerified": false
+  "bounds": {
+    "Y": 10,
+    "X": 402,
+    "Height": 26,
+    "Width": 276
+  },
+  "initialRecoveryStatus": "connection_error",
+  "quotaPollingSeconds": 30
 }

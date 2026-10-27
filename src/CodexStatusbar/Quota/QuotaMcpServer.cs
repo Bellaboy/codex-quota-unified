@@ -23,7 +23,7 @@ internal sealed class QuotaMcpServer(Func<string> readStatus)
                 var protocol = requested is "2025-11-25" or "2025-06-18" or "2025-03-26" or "2024-11-05"
                     ? requested : "2025-03-26";
                 return Success(new { protocolVersion = protocol, capabilities = new { tools = new { } },
-                    serverInfo = new { name = "codex-quota-unified", version = "1.0.1" } });
+                    serverInfo = new { name = "codex-quota-unified", version = "1.0.2" } });
             case "ping": return Success(new { });
             case "tools/list":
                 return Success(new { tools = new[] { new {

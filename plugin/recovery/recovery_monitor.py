@@ -44,10 +44,14 @@ def load_runtime(root=ROOT, data=DATA):
 
 
 def publish_runtime(config, data=DATA):
-    # Called only by a current official plugin invocation, never by a worker
-    # inheriting the old desktop environment. No endpoint enumeration.
-    refreshed = resolve_runtime(config, refresh_identity=True)
-    if os.environ.get('CODEX_APP_TOOLS_PIPE_PATH') and os.environ.get('CODEX_THREAD_ID'):
+    # 桌面冷启动有当前管道，但通常没有聊天 ID。连接地址随桌面重启更新，
+    # 聊天身份沿用此前官方调用提供的持久记录；不枚举端点或推断聊天身份。
+    known = dict(config)
+    shared = read_json(data / 'bridge-runtime.json', {})
+    if not known.get('callerThreadId') and shared.get('callerThreadId'):
+        known['callerThreadId'] = shared['callerThreadId']
+    refreshed = resolve_runtime(known, refresh_identity=True)
+    if os.environ.get('CODEX_APP_TOOLS_PIPE_PATH'):
         data.mkdir(parents=True, exist_ok=True)
         atomic(data / 'bridge-runtime.json', {k: refreshed[k] for k in ('pipe', 'callerThreadId', 'node', 'server') if refreshed.get(k)})
     return refreshed
@@ -134,6 +138,7 @@ class AppTools:
         self.config=resolve_runtime(config);self.seq=0;self.messages=queue.Queue();self.p=None
     def open(self):
         self.config=resolve_runtime(self.config)
+        if not self.config.get('callerThreadId'):raise RuntimeError('desktop_caller_identity_unavailable')
         env=os.environ.copy()
         if self.config.get('pipe'):env['CODEX_APP_TOOLS_PIPE_PATH']=self.config['pipe']
         if not env.get('CODEX_APP_TOOLS_PIPE_PATH'): raise RuntimeError('desktop_bridge_unavailable')

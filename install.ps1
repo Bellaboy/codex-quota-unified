@@ -7,6 +7,11 @@ if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'plugin/bin/CodexQuota
 @{python=[IO.Path]::GetFullPath($PythonPath)} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'plugin/runtime.json') -Encoding utf8
 $data=Join-Path $env:LOCALAPPDATA 'CodexQuotaUnified'
 New-Item -ItemType Directory -Path $data -Force | Out-Null
+if ($EnableRecovery -and $env:CODEX_APP_TOOLS_PIPE_PATH -and $env:CODEX_THREAD_ID) {
+    # 只接收本次 Codex 官方调用提供的身份；普通终端不会猜测其他聊天。
+    & $PythonPath -c 'import sys; sys.path.insert(0, sys.argv[1]); from recovery_monitor import publish_runtime; publish_runtime({})' (Join-Path $PSScriptRoot 'plugin/recovery')
+    if ($LASTEXITCODE -ne 0) { throw '恢复调用身份保存失败。' }
+}
 $settings=Join-Path $data 'recovery-settings.json'
 if (-not (Test-Path -LiteralPath $settings)) {
     @{enabled=$EnableRecovery.IsPresent;generation=[guid]::NewGuid().ToString()} | ConvertTo-Json | Set-Content -LiteralPath $settings -Encoding utf8

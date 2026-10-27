@@ -1,4 +1,4 @@
-# Codex 额度与恢复 1.0.1
+# Codex 额度与恢复 1.0.2
 
 Windows 本地融合插件：在 Codex 顶栏显示额度，额度恢复后继续因额度耗尽而中断的原任务。
 
@@ -46,6 +46,10 @@ dotnet publish ./src/CodexStatusbar/CodexStatusbar.csproj -c Release -r win-x64 
 安装器注册独立市场 `codex-unified-tools` 和插件 `codex-quota-unified`，不修改 Codex 主程序，也不创建 Windows 登录启动项。`plugin/runtime.json` 仅保存本地 Python 路径，安装后随插件缓存复制。
 
 v1.0.1 修复 v1.0.0 重启后未加载的问题：`mcp.json` 必须包含 Agent Plugins 的 `$schema`，否则官方加载器不发现该服务。另用 `.codex-plugin/plugin.json` 的 Codex 环境覆盖声明传入当前桌面连接环境，避免恢复进程继续使用上一次启动的连接。
+
+v1.0.2 修复真实桌面冷启动没有 `CODEX_THREAD_ID` 时的恢复连接更新：使用当前启动提供的管道，保留此前官方调用提供的聊天身份。首次启用自动恢复请让 Codex 执行安装命令，以保存它提供的调用身份；普通终端没有该身份时，顶栏仍可工作，恢复监控会明确报告身份缺失。身份和连接均保存在本机，不进入发布包。
+
+当前源码仍保留上游 Token/TPS 状态条及其 Windows 启动管理实现；统一入口阻止启用这些功能，构建尚未剔除这些源码。低额度提醒也仍保留，默认关闭。玻璃电池及动画没有进入统一插件安装包。
 
 `tests/verify-plugin-discovery.py` 使用官方 `plugin/read` 和临时无模型会话验证服务发现、MCP 托管启动、新额度读数及恢复监控；仅对二进制握手成功不足以证明自动加载成功。
 
