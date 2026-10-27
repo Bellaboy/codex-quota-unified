@@ -35,7 +35,14 @@ internal sealed class BatteryStripForm : Form
     protected override bool ShowWithoutActivation => true;
     protected override CreateParams CreateParams
     {
-        get { var p = base.CreateParams; p.ExStyle |= 0x00080000 | 0x00000080 | 0x08000000; return p; }
+        get
+        {
+            var p = base.CreateParams;
+            // 必须是真正的 popup，才能维持与 Codex 的 owned-window 层级关系。
+            p.Style = (p.Style & ~0x40000000) | unchecked((int)0x80000000);
+            p.ExStyle |= 0x00080000 | 0x00000080 | 0x08000000;
+            return p;
+        }
     }
     protected override void WndProc(ref Message message)
     {
@@ -80,8 +87,9 @@ internal sealed class BatteryStripForm : Form
         var resized = Width != rect.Width || Height != rect.Height;
         var showing = !Visible;
         if (showing) Show();
-        // 跟随 MCP 所属 Codex owner 的层级；平移只复用已有表面，不抢其他应用的置顶顺序。
-        if (moved && !SetWindowPos(Handle, IntPtr.Zero, rect.X, rect.Y, rect.Width, rect.Height, 0x0014))
+        // HWND_TOP 修正非激活窗口被压到 owner 后面的情况；不设置全局 TOPMOST，
+        // 不激活窗口，也不连带移动 Codex owner 的层级。平移继续复用已有表面。
+        if (!SetWindowPos(Handle, IntPtr.Zero, rect.X, rect.Y, rect.Width, rect.Height, 0x0210))
             throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
         if (moved) NativeMoves++;
         if (showing || resized) Blit();
@@ -102,6 +110,7 @@ internal sealed class BatteryStripForm : Form
             visible = IsWindowVisible(Handle),
             actualBounds = new IntRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top),
             owner = GetWindowLongPtr(Handle, -8).ToInt64(),
+            popupWindow = (GetWindowLongPtr(Handle, -16).ToInt64() & 0x80000000L) != 0,
             tooltipStyle = "codex-rounded-card", tooltipVisible = _hoverCard.Visible, tooltipPopups = TooltipPopups,
             renderedInkAtExpectedPosition = foundInk && WindowFromPoint(inkPoint) == Handle
         };

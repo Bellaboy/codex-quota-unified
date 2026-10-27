@@ -10,6 +10,7 @@ verification/*
 !verification/credit-expiry.json
 !verification/hover.json
 !verification/compact-hover.json
+!verification/zorder.json
 plugin/runtime.json
 **/bin/
 **/obj/

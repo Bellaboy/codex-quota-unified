@@ -1,9 +1,12 @@
 using System.Text.Json;
+using System.Runtime.InteropServices;
 
 namespace CodexStatusbar.Quota;
 
 internal static class QuotaSelfTest
 {
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr window, uint command);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
     public static int Run(string path)
     {
         var results = new List<object>();
@@ -49,6 +52,26 @@ internal static class QuotaSelfTest
             strip.SetSurface(BatteryRenderer.Render(QuotaSnapshot.Empty, now, 96, false, false), Array.Empty<QuotaHoverRow>());
             for (var i = 0; i < 120; i++) strip.PositionAt(new(200 + i, 200, BatteryLayout.WidthDip, 26));
             Assert(strip.NativeMoves == 120 && strip.SurfaceRenders == 1, "movement regenerated the surface");
+        });
+        Test("unchanged placement repairs popup order above its owner", () =>
+        {
+            using var owner = new Form { StartPosition = FormStartPosition.Manual, Bounds = new Rectangle(700, 400, 400, 200), ShowInTaskbar = false };
+            owner.Show();
+            using var strip = new BatteryStripForm();
+            strip.Attach(owner.Handle);
+            strip.SetSurface(BatteryRenderer.Render(QuotaSnapshot.Empty, now, 96, false, false), Array.Empty<QuotaHoverRow>());
+            var bounds = new IntRect(720, 430, 276, 26);
+            strip.PositionAt(bounds);
+            SetWindowPos(strip.Handle, new IntPtr(1), 0, 0, 0, 0, 0x0213);
+            strip.PositionAt(bounds);
+            var state = JsonSerializer.SerializeToElement(strip.InspectNativeState());
+            Assert(state.GetProperty("popupWindow").GetBoolean(), "strip is not a popup window");
+            Assert(state.GetProperty("owner").GetInt64() == owner.Handle.ToInt64(), "owner binding lost");
+            var reachedOwner = false;
+            for (var window = GetWindow(strip.Handle, 2); window != IntPtr.Zero; window = GetWindow(window, 2))
+                if (window == owner.Handle) { reachedOwner = true; break; }
+            Assert(reachedOwner, "unchanged placement left strip behind its owner");
+            Assert(strip.SurfaceRenders == 1, "z-order repair rerendered surface");
         });
         QuotaSnapshot Parse(string json) { using var doc = JsonDocument.Parse(json); return QuotaParser.Parse(doc.RootElement, now); }
 

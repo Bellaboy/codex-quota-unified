@@ -1,0 +1,19 @@
+{
+  "packageVersion": "1.0.8",
+  "regressionOwnerBindingAndUnchangedPlacement": true,
+  "cause": "non-popup overlay retained stale z-order behind its Codex owner",
+  "fix": [
+    "explicit WS_POPUP style",
+    "HWND_TOP with SWP_NOACTIVATE and SWP_NOOWNERZORDER on each placement"
+  ],
+  "recoveryPromptAndDeduplicationUnchanged": true,
+  "mcpLifecyclePassed": true,
+  "recoveryMonitoring": true,
+  "installedVersion": "1.0.8",
+  "originalPlacementPreserved": true,
+  "quotaReadHealthy": true,
+  "actualDesktopDisplayVerification": "pending foreground and hover confirmation",
+  "globalTopmost": false,
+  "nativeTestsPassed": 46,
+  "nativeTestsFailed": 0
+}
