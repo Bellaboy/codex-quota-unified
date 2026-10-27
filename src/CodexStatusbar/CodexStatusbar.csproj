@@ -8,7 +8,7 @@
     <AssemblyName>CodexQuotaUnified</AssemblyName>
     <StartupObject>CodexStatusbar.Quota.QuotaProgram</StartupObject>
     <RootNamespace>CodexStatusbar</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <Product>Codex Quota Unified</Product>

@@ -4,6 +4,7 @@ dist/
 verification/*
 !verification/sources.json
 !verification/summary.json
+!verification/startup.json
 plugin/runtime.json
 **/bin/
 **/obj/

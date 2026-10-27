@@ -1,0 +1,23 @@
+{
+  "declaredServers": [
+    "quota-unified"
+  ],
+  "serverListed": true,
+  "toolNames": [
+    "get_quota_status"
+  ],
+  "mcpHosted": true,
+  "recoveryStatus": "monitoring",
+  "quotaPollingSeconds": 30,
+  "bounds": {
+    "X": 402,
+    "Y": 10,
+    "Width": 276,
+    "Height": 26
+  },
+  "freshQuotaRead": true,
+  "passed": true,
+  "packageVersion": "1.0.1",
+  "verification": "official Codex loader with an ephemeral session; no model turn",
+  "fullDesktopRestartVerified": false
+}
