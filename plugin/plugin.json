@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "codex-quota-unified",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Windows Codex 顶栏额度与恢复自动续跑，统一30秒额度检测。",
   "author": {
     "name": "Bellaboy; upstream contributors"

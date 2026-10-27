@@ -5,13 +5,17 @@ namespace CodexStatusbar.Quota;
 internal sealed class QuotaMcpServer(Func<string> readStatus)
 {
     private int _closed;
+    private int _initialized;
     public bool ConnectionClosed => Volatile.Read(ref _closed) != 0;
+    public bool Initialized => Volatile.Read(ref _initialized) != 0;
 
     internal object? Handle(JsonElement message)
     {
-        if (message.ValueKind != JsonValueKind.Object || !message.TryGetProperty("id", out var originalId)) return null;
-        var id = originalId.Clone();
+        if (message.ValueKind != JsonValueKind.Object) return null;
         var method = message.TryGetProperty("method", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() : null;
+        if (method == "notifications/initialized") { Interlocked.Exchange(ref _initialized, 1); return null; }
+        if (!message.TryGetProperty("id", out var originalId)) return null;
+        var id = originalId.Clone();
         object Success(object result) => new { jsonrpc = "2.0", id, result };
         object Error(int code, string text) => new { jsonrpc = "2.0", id, error = new { code, message = text } };
         switch (method)
@@ -23,7 +27,7 @@ internal sealed class QuotaMcpServer(Func<string> readStatus)
                 var protocol = requested is "2025-11-25" or "2025-06-18" or "2025-03-26" or "2024-11-05"
                     ? requested : "2025-03-26";
                 return Success(new { protocolVersion = protocol, capabilities = new { tools = new { } },
-                    serverInfo = new { name = "codex-quota-unified", version = "1.0.2" } });
+                    serverInfo = new { name = "codex-quota-unified", version = "1.0.3" } });
             case "ping": return Success(new { });
             case "tools/list":
                 return Success(new { tools = new[] { new {

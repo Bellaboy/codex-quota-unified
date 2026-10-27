@@ -15,6 +15,27 @@ internal static class QuotaSelfTest
         }
         void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
         var now = DateTimeOffset.FromUnixTimeSeconds(1800000000);
+        Test("startup owner does not register a connecting tray icon", () =>
+        {
+            using var app = new QuotaBatteryApplication();
+            try { Assert(!app.TrayVisible, "startup registered a tray icon before the first quota result"); }
+            finally { app.ExitThread(); }
+        });
+        Test("standby connection does not register a tray icon", () =>
+        {
+            using var app = new QuotaBatteryApplication(renderOverlay: false);
+            try { Assert(!app.TrayVisible, "standby registered a tray icon"); }
+            finally { app.ExitThread(); }
+        });
+        Test("MCP initialization must finish before owner starts background work", () =>
+        {
+            var server = new QuotaMcpServer(() => "{}");
+            using var init = JsonDocument.Parse("""{"id":1,"method":"initialize"}""");
+            server.Handle(init.RootElement);
+            Assert(!server.Initialized, "initialize response alone marked the client ready");
+            using var ready = JsonDocument.Parse("""{"method":"notifications/initialized"}""");
+            Assert(server.Handle(ready.RootElement) is null && server.Initialized, "initialized notification was ignored");
+        });
         QuotaSnapshot Parse(string json) { using var doc = JsonDocument.Parse(json); return QuotaParser.Parse(doc.RootElement, now); }
 
         Test("prefers account codex bucket over model bucket and legacy", () =>

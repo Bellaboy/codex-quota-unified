@@ -35,6 +35,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
     private string? _renderKey;
     private IntRect _bounds;
     private string _anchorSource = "waiting-for-codex";
+    internal bool TrayVisible => _tray.Visible;
 
     public QuotaBatteryApplication(bool renderOverlay = true, QuotaMcpServer? mcp = null, Func<bool>? tryClaimOverlay = null)
     {
@@ -54,7 +55,9 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
         menu.Items.Add("随 Codex 启动和退出").Enabled = false;
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => ExitThread());
-        _tray = new NotifyIcon { Icon = SystemIcons.Information, Text = "Codex 额度与恢复 · 正在连接", ContextMenuStrip = menu, Visible = renderOverlay };
+        // 桌面发现服务时可能很快回收临时进程。首次查询完成前不注册托盘图标，
+        // 避免进程尚在连接时被结束后留下“正在连接”的 Shell 残影。
+        _tray = new NotifyIcon { Icon = SystemIcons.Information, ContextMenuStrip = menu };
         _tray.DoubleClick += (_, _) => _nextRead = DateTimeOffset.MinValue;
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
@@ -107,13 +110,13 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
             if (_tryClaimOverlay())
             {
                 _renderOverlay = true;
-                _tray.Visible = true;
                 _renderKey = null;
                 _nextRead = DateTimeOffset.MinValue;
                 _nextStatus = DateTimeOffset.MinValue;
             }
         }
         if (!_renderOverlay) return;
+        if (_mcp is { Initialized: false }) return;
         _recovery.EnsureRunning();
         if (_target is not null && now >= _nextRead && !_reading)
         {
@@ -197,6 +200,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                 var now = DateTimeOffset.UtcNow;
                 var trayText = $"Codex · {_state.Snapshot.First?.Label ?? "5h"} {_state.Snapshot.First?.Display(now) ?? "--"} · {_state.Snapshot.Second?.Label ?? "周"} {_state.Snapshot.Second?.Display(now) ?? "--"} · 重置卡 {_state.Snapshot.ResetCreditDisplay}{(_state.Stale(now) ? " · 待刷新" : "")}";
                 _tray.Text = trayText.Length <= 63 ? trayText : trayText[..63];
+                _tray.Visible = true;
             }
         }
     }
@@ -235,6 +239,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                 shortRemaining = snapshot.First is { Minutes: 300 } first && !first.Expired(now) ? (double?)first.Remaining : null,
                 weekRemaining = snapshot.Second is { Minutes: 10080 } second && !second.Expired(now) ? (double?)second.Remaining : null,
                 lowQuotaAlertsEnabled = _alertsEnabled,
+                trayVisible = _tray.Visible,
                 recoveryProcessId = _recovery.ProcessId, recovery = RecoveryCompanion.ReadStatus(),
                 native = _strip.InspectNativeState(), lifecycle = "codex-owned", mcpHosted = _mcp is not null };
             File.WriteAllText(Path.Combine(DataDirectory, "status.tmp"), JsonSerializer.Serialize(status, new JsonSerializerOptions { WriteIndented = true }));

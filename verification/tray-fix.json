@@ -1,0 +1,26 @@
+{
+  "before": {
+    "deadCallbackWindows": 2,
+    "matchingTrayEntries": 3,
+    "liveCallbackWindows": 1
+  },
+  "mcpEofExitVerified": true,
+  "packageVersion": "1.0.3",
+  "fullDesktopRestartAfterFixVerified": false,
+  "existingRecoveryMonitoring": true,
+  "problem": "orphaned connecting tray icons",
+  "nativeRegressionTests": 37,
+  "activeDesktopVersion": "1.0.2",
+  "survivingChildren": 0,
+  "fix": {
+    "standbyTrayHidden": true,
+    "backgroundWorkAfterMcpInitialization": true,
+    "registrationAfterFirstQuotaResult": true
+  },
+  "activation": "next full Codex startup",
+  "afterCleanup": {
+    "deadCallbackWindows": 0,
+    "matchingTrayEntries": 1,
+    "liveCallbackWindows": 1
+  }
+}

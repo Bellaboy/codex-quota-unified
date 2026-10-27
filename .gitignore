@@ -5,6 +5,7 @@ verification/*
 !verification/sources.json
 !verification/summary.json
 !verification/startup.json
+!verification/tray-fix.json
 plugin/runtime.json
 **/bin/
 **/obj/
