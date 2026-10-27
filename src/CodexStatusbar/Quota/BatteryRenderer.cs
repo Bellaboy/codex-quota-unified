@@ -25,9 +25,12 @@ internal static class BatteryRenderer
         DrawBattery(g, quota.First, "5h", 0, now, readIsOld, ink, font, valueFont, format);
         DrawBattery(g, quota.Second, "周", 96, now, readIsOld, ink, font, valueFont, format);
         using var creditInk = new SolidBrush(ink);
-        using var creditFormat = new StringFormat { Alignment = StringAlignment.Near,
-            LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
-        g.DrawString(quota.ResetCreditText, font, creditInk, new RectangleF(191, 0, BatteryLayout.WidthDip - 195, 26), creditFormat);
+        using var cardPen = new Pen(readIsOld ? Color.FromArgb(145, ink) : Color.FromArgb(190, ink), 1.1f);
+        if (readIsOld) cardPen.DashStyle = DashStyle.Dash;
+        g.DrawString("重置卡", font, creditInk, new RectangleF(191, 0, 44, 26), format);
+        using var card = Rounded(new RectangleF(237, 4, 35, 18), 3);
+        g.DrawPath(cardPen, card);
+        g.DrawString(quota.ResetCreditDisplay, valueFont, creditInk, new RectangleF(237, 3.5f, 35, 19), format);
         return bitmap;
     }
 

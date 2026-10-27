@@ -46,7 +46,7 @@ internal static class QuotaSelfTest
         Test("120 moves reuse a single rendered surface", () =>
         {
             using var strip = new BatteryStripForm();
-            strip.SetSurface(BatteryRenderer.Render(QuotaSnapshot.Empty, now, 96, false, false), "test");
+            strip.SetSurface(BatteryRenderer.Render(QuotaSnapshot.Empty, now, 96, false, false), Array.Empty<QuotaHoverRow>());
             for (var i = 0; i < 120; i++) strip.PositionAt(new(200 + i, 200, BatteryLayout.WidthDip, 26));
             Assert(strip.NativeMoves == 120 && strip.SurfaceRenders == 1, "movement regenerated the surface");
         });
@@ -107,12 +107,12 @@ internal static class QuotaSelfTest
         Test("dock after Help and vertically center", () =>
         {
             var r = BatteryLayout.Place(new(270, 0, 40, 36), new(0, 0, 880, 1000), 96, 740);
-            Assert(r.Left == 322 && r.Top == 5 && r.Width == 400 && r.Height == 26, "wrong dock position or reset stock missing");
+            Assert(r.Left == 322 && r.Top == 5 && r.Width == 276 && r.Height == 26, "wrong dock position or reset stock missing");
         });
         Test("DPI scales menu gap and battery size", () =>
         {
             var r = BatteryLayout.Place(new(405, 0, 60, 54), new(0, 0, 1320, 1500), 144, 1110);
-            Assert(r.Left == 483 && r.Width == 600 && r.Height == 39, "wrong 150% scaling");
+            Assert(r.Left == 483 && r.Width == 414 && r.Height == 39, "wrong 150% scaling");
         });
         Test("narrow host hides without covering window controls", () =>
         {
@@ -164,7 +164,7 @@ internal static class QuotaSelfTest
         {
             using var bitmap = BatteryRenderer.Render(new(new(300, 15, now.AddHours(1)), new(10080, 5, now.AddDays(1)), now, 1), now, 144, false, false);
             Assert(bitmap.GetPixel(0, 0).A == 1 && bitmap.GetPixel(bitmap.Width - 1, 0).A == 1, "hover hit backing is missing or opaque");
-            Assert(bitmap.Width == 600, "inventory width absent");
+            Assert(bitmap.Width == 414, "inventory width absent");
         });
         Test("zero reset cards is distinct from unknown inventory", () =>
         {
@@ -180,33 +180,44 @@ internal static class QuotaSelfTest
                 credits = new[] { new { status = "used", expiresAt = earlier.AddDays(-1).ToUnixTimeSeconds() },
                     new { status = "available", expiresAt = later.ToUnixTimeSeconds() },
                     new { status = "available", expiresAt = earlier.ToUnixTimeSeconds() } } } }));
-            Assert(snapshot.ResetCreditText == "重置卡 2 张｜最早到期 10-29 08:10", "wrong earliest date, timezone, or minute format");
-            Assert(snapshot.ResetCreditTooltip.Contains("第 1 张：10-29 08:10 到期")
-                && snapshot.ResetCreditTooltip.Contains("第 2 张：11-06 08:10 到期"), "tooltip lost card dates or sorting");
+            Assert(snapshot.ResetCreditText == "重置卡 2 张", "wrong earliest date, timezone, or minute format");
+            Assert(snapshot.HoverRows[2] == new QuotaHoverRow("重置卡 1 到期", "10-29 08:10", true)
+                && snapshot.HoverRows[3] == new QuotaHoverRow("重置卡 2 到期", "11-06 08:10"), "tooltip lost card dates or sorting");
         });
         Test("missing card dates never claim a known earliest expiration", () =>
         {
             var snapshot = Parse("""{"rateLimitResetCredits":{"availableCount":2,"credits":[{"status":"available","expiresAt":1793232659},{"status":"available"}]}}""");
-            Assert(snapshot.ResetCreditText == "重置卡 2 张｜到期未知" && snapshot.ResetCreditTooltip.Contains("第 2 张：到期未知"), "missing expiration was invented");
+            Assert(snapshot.ResetCreditText == "重置卡 2 张" && snapshot.HoverRows[3].Value == "--", "missing expiration was invented");
         });
         Test("partial inventory keeps authoritative count with unknown expiration", () =>
         {
             var snapshot = Parse("""{"rateLimitResetCredits":{"availableCount":2,"credits":[{"status":"available","expiresAt":1793232659}]}}""");
-            Assert(snapshot.ResetCreditText.EndsWith("到期未知") && snapshot.ResetCreditTooltip.Contains("另 1 张：到期未知"), "partial inventory mislabeled earliest date");
+            Assert(snapshot.HoverRows.Count == 4 && snapshot.HoverRows[3].Value == "--", "partial inventory mislabeled earliest date");
         });
         Test("zero cards omit expiration and invalid dates stay unknown", () =>
         {
             Assert(new QuotaSnapshot(null, null, now, 0).ResetCreditText == "重置卡 0 张", "zero-card UI claims expiration");
             var snapshot = Parse("""{"rateLimitResetCredits":{"availableCount":1,"credits":[{"status":"available","expiresAt":9223372036854775807}]}}""");
-            Assert(snapshot.ResetCreditText == "重置卡 1 张｜到期未知", "invalid timestamp became an expiration");
+            Assert(snapshot.ResetCreditText == "重置卡 1 张" && snapshot.HoverRows[2].Value == "--", "invalid timestamp became an expiration");
         });
-        Test("long credit text fits its text area at 96 DPI", () =>
+        Test("hover includes only quota refresh and card expiration times", () =>
         {
-            using var bitmap = new Bitmap(1, 1);
-            using var graphics = Graphics.FromImage(bitmap);
-            using var font = new Font("Segoe UI", 11, FontStyle.Regular, GraphicsUnit.Pixel);
-            var snapshot = new QuotaSnapshot(null, null, now, 2, new DateTimeOffset?[] { now.AddDays(1), now.AddDays(2) });
-            Assert(graphics.MeasureString(snapshot.ResetCreditText, font).Width <= BatteryLayout.WidthDip - 195, "credit expiration text is clipped");
+            var snapshot = new QuotaSnapshot(new(300, 10, now.AddHours(1)), new(10080, 20, now.AddDays(1)), now, 1,
+                new DateTimeOffset?[] { now.AddDays(2) });
+            Assert(snapshot.HoverRows.Count == 3 && snapshot.HoverRows[0].Label == "5h 刷新"
+                && snapshot.HoverRows[1].Label == "周额度刷新", "unexpected tooltip rows");
+            foreach (var row in snapshot.HoverRows)
+                Assert(row.Value.Length == 11 && !row.Value.Contains("%"), "tooltip contains more than minute-precision dates");
+            Assert(!snapshot.ResetCreditTooltip.Contains("最近") && !snapshot.ResetCreditTooltip.Contains("北京时间")
+                && !snapshot.ResetCreditTooltip.Contains("每30秒") && !snapshot.ResetCreditTooltip.Contains("可用重置卡"), "extra tooltip prose retained");
+        });
+        Test("rounded hover card scales in light and dark mode", () =>
+        {
+            var rows = new QuotaSnapshot(null, null, now, 1, new DateTimeOffset?[] { now.AddDays(1) }).HoverRows;
+            using var light = QuotaHoverCard.Render(rows, false, 96);
+            using var dark = QuotaHoverCard.Render(rows, true, 144);
+            Assert(light.Width == 280 && dark.Width == 420 && light.GetPixel(0, 0).A == 0, "card size or rounded corner incorrect");
+            Assert(light.GetPixel(20, 10).ToArgb() != dark.GetPixel(30, 15).ToArgb(), "theme colors identical");
         });
         Test("credit stock change affects rendered pixels", () =>
         {

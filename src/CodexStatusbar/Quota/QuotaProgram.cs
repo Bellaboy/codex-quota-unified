@@ -26,6 +26,19 @@ internal static class QuotaProgram
             if (EventWaitHandle.TryOpenExisting(QuotaBatteryApplication.StopEventName, out var stop)) { using (stop) stop.Set(); }
             return 0;
         }
+        if (args.Length >= 2 && args[0] == "--render-hover")
+        {
+            Directory.CreateDirectory(args[1]);
+            var stamp = new DateTimeOffset(2026, 10, 28, 8, 0, 0, TimeSpan.FromHours(8));
+            var rows = new QuotaSnapshot(new(300, 20, stamp.AddHours(3)), new(10080, 40, stamp.AddDays(3)), stamp, 2,
+                new DateTimeOffset?[] { stamp.AddDays(2), stamp.AddDays(9) }).HoverRows;
+            foreach (var dark in new[] { false, true })
+            {
+                using var bitmap = QuotaHoverCard.Render(rows, dark, 144);
+                bitmap.Save(Path.Combine(args[1], dark ? "hover-dark.png" : "hover-light.png"));
+            }
+            return 0;
+        }
         if (args.Length >= 2 && args[0] == "--render-batteries") { BatteryRenderer.ExportSamples(args[1]); return 0; }
         if (args.Length >= 2 && args[0] == "--quota-probe")
         {

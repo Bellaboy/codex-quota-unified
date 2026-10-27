@@ -3,6 +3,8 @@ using System.Text.Json;
 
 namespace CodexStatusbar.Quota;
 
+internal sealed record QuotaHoverRow(string Label, string Value, bool SeparatorBefore = false);
+
 internal sealed record QuotaWindow(int Minutes, double UsedPercent, DateTimeOffset? ResetsAt)
 {
     public double Remaining => Math.Clamp(100 - UsedPercent, 0, 100);
@@ -16,27 +18,26 @@ internal sealed record QuotaSnapshot(QuotaWindow? First, QuotaWindow? Second, Da
 {
     public static QuotaSnapshot Empty { get; } = new(null, null, DateTimeOffset.MinValue, null);
     public string ResetCreditDisplay => ResetCredits is { } count ? count > 999 ? "999+" : count.ToString(CultureInfo.InvariantCulture) : "--";
-    // 只有全部可用卡的日期已知时，才把其中一个日期标为“最早”，避免漏报的卡更早到期。
-    public DateTimeOffset? EarliestCreditExpiration => ResetCredits is > 0
-        && ResetCreditExpirations?.Count == ResetCredits && ResetCreditExpirations.All(x => x.HasValue)
-        ? ResetCreditExpirations.Min() : null;
     internal static string CreditDate(DateTimeOffset date) => date.ToOffset(TimeSpan.FromHours(8)).ToString("MM-dd HH:mm", CultureInfo.InvariantCulture);
-    public string ResetCreditText => ResetCredits == 0 ? "重置卡 0 张"
-        : $"重置卡 {ResetCreditDisplay} 张｜" + (EarliestCreditExpiration is { } expiry
-            ? $"最早到期 {CreditDate(expiry)}" : "到期未知");
-    public string ResetCreditTooltip
+    public string ResetCreditText => $"重置卡 {ResetCreditDisplay} 张";
+    public IReadOnlyList<QuotaHoverRow> HoverRows
     {
         get
         {
-            var lines = new List<string> { $"可用重置卡：{ResetCreditDisplay} 张" };
-            if (ResetCredits == 0) return lines[0];
+            var rows = new List<QuotaHoverRow> {
+                new("5h 刷新", First?.ResetsAt is { } first ? CreditDate(first) : "--"),
+                new("周额度刷新", Second?.ResetsAt is { } second ? CreditDate(second) : "--")
+            };
+            if (ResetCredits == 0) return rows;
             var dates = (ResetCreditExpirations ?? Array.Empty<DateTimeOffset?>()).OrderBy(x => x ?? DateTimeOffset.MaxValue).ToArray();
-            for (var i = 0; i < dates.Length; i++)
-                lines.Add($"第 {i + 1} 张：" + (dates[i] is { } expiry ? $"{CreditDate(expiry)} 到期" : "到期未知"));
-            if (ResetCredits is { } count && count > dates.Length) lines.Add($"另 {count - dates.Length} 张：到期未知");
-            return string.Join("\n", lines) + "\n时间为北京时间";
+            var count = Math.Max(ResetCredits ?? 0, dates.Length);
+            for (var i = 0; i < count; i++)
+                rows.Add(new($"重置卡 {i + 1} 到期", i < dates.Length && dates[i] is { } expiry ? CreditDate(expiry) : "--", i == 0));
+            return rows;
         }
     }
+    public string ResetCreditTooltip => string.Join("\n", HoverRows.Select(x => $"{x.Label}  {x.Value}"));
+
 }
 
 internal static class QuotaParser

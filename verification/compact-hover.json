@@ -1,0 +1,23 @@
+{
+  "bounds": {
+    "Y": 10,
+    "Width": 276,
+    "X": 402,
+    "Height": 26
+  },
+  "hoverContentOnly": [
+    "5h refresh time",
+    "weekly refresh time",
+    "each available reset-card expiry"
+  ],
+  "nativeTestsPassed": 45,
+  "previewImagesInspected": true,
+  "userConfirmedContentAndDisplay": true,
+  "cardBatteryOutlineRestored": true,
+  "recoveryMonitoring": true,
+  "packageVersion": "1.0.7",
+  "tooltipStyle": "rounded card, neutral light/dark, aligned columns",
+  "tooltipNoActivation": true,
+  "mcpEofCleanupPassed": true,
+  "toolbarExpiryRemoved": true
+}

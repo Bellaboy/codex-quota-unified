@@ -5,10 +5,13 @@ namespace CodexStatusbar.Quota;
 /// <summary>Adapted from upstream TokenStripForm's premultiplied ARGB layered-window compositor.</summary>
 internal sealed class BatteryStripForm : Form
 {
-    // 额度条始终 NOACTIVATE，默认 ShowAlways=false 会使自动提示无法显示。
-    private readonly ToolTip _tooltip = new() { ShowAlways = true, InitialDelay = 300, ReshowDelay = 100, AutoPopDelay = 25000 };
+    private readonly QuotaHoverCard _hoverCard = new();
+    private readonly System.Windows.Forms.Timer _hoverTimer = new() { Interval = 300 };
+    private IReadOnlyList<QuotaHoverRow> _hoverRows = Array.Empty<QuotaHoverRow>();
+    private bool _hoverDark;
+    private uint _hoverDpi = 96;
+    private Point _hoverPoint;
     private Bitmap? _surface;
-    private string _tooltipText = "正在读取 Codex 额度…";
     internal long SurfaceRenders { get; private set; }
     internal long NativeMoves { get; private set; }
     internal long TooltipPopups { get; private set; }
@@ -20,7 +23,14 @@ internal sealed class BatteryStripForm : Form
         AutoScaleMode = AutoScaleMode.None;
         Text = "Codex 额度电池条";
         AccessibleName = Text;
-        _tooltip.Popup += (_, _) => TooltipPopups++;
+        _hoverTimer.Tick += (_, _) =>
+        {
+            _hoverTimer.Stop();
+            if (!Visible || !ClientRectangle.Contains(PointToClient(Cursor.Position))) return;
+            var alreadyVisible = _hoverCard.Visible;
+            _hoverCard.Present(this, _hoverRows, _hoverDark, _hoverDpi);
+            if (!alreadyVisible && _hoverCard.Visible) TooltipPopups++;
+        };
     }
     protected override bool ShowWithoutActivation => true;
     protected override CreateParams CreateParams
@@ -36,21 +46,34 @@ internal sealed class BatteryStripForm : Form
     {
         if (GetWindowLongPtr(Handle, -8) != host) SetWindowLongPtr(Handle, -8, host);
     }
-    public void SetSurface(Bitmap surface, string tooltip)
+    public void SetSurface(Bitmap surface, IReadOnlyList<QuotaHoverRow> rows, bool dark = false, uint dpi = 96)
     {
         SurfaceRenders++;
-        var old = _surface;
-        _surface = surface;
-        old?.Dispose();
-        if (_tooltipText != tooltip) { _tooltipText = tooltip; _tooltip.SetToolTip(this, tooltip); }
+        var old = _surface; _surface = surface; old?.Dispose();
+        _hoverDark = dark; _hoverDpi = dpi;
+        UpdateTooltip(rows);
         if (IsHandleCreated) Blit();
     }
-    public void UpdateTooltip(string tooltip)
+    public void UpdateTooltip(IReadOnlyList<QuotaHoverRow> rows)
     {
-        if (_tooltipText == tooltip) return;
-        _tooltipText = tooltip;
-        _tooltip.SetToolTip(this, tooltip);
+        if (!_hoverRows.SequenceEqual(rows)) _hoverRows = rows.ToArray();
+        if (_hoverCard.Visible) _hoverCard.Present(this, _hoverRows, _hoverDark, _hoverDpi);
     }
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        base.OnMouseEnter(e); _hoverPoint = PointToClient(Cursor.Position); _hoverTimer.Start();
+    }
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (!_hoverCard.Visible && _hoverPoint != e.Location)
+        { _hoverPoint = e.Location; _hoverTimer.Stop(); _hoverTimer.Start(); }
+    }
+    private void DismissHover() { _hoverTimer?.Stop(); _hoverCard?.Hide(); }
+    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); DismissHover(); }
+    protected override void OnMouseDown(MouseEventArgs e) { DismissHover(); base.OnMouseDown(e); }
+    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) DismissHover(); }
+    protected override void OnLocationChanged(EventArgs e) { DismissHover(); base.OnLocationChanged(e); }
     public void PositionAt(IntRect rect)
     {
         var moved = Bounds != rect.ToRectangle();
@@ -79,7 +102,7 @@ internal sealed class BatteryStripForm : Form
             visible = IsWindowVisible(Handle),
             actualBounds = new IntRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top),
             owner = GetWindowLongPtr(Handle, -8).ToInt64(),
-            tooltipShowAlways = _tooltip.ShowAlways, tooltipPopups = TooltipPopups,
+            tooltipStyle = "codex-rounded-card", tooltipVisible = _hoverCard.Visible, tooltipPopups = TooltipPopups,
             renderedInkAtExpectedPosition = foundInk && WindowFromPoint(inkPoint) == Handle
         };
     }
@@ -110,7 +133,7 @@ internal sealed class BatteryStripForm : Form
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { _tooltip.Dispose(); _surface?.Dispose(); }
+        if (disposing) { _hoverTimer.Dispose(); _hoverCard.Dispose(); _surface?.Dispose(); }
         base.Dispose(disposing);
     }
     [StructLayout(LayoutKind.Sequential)] private struct NativePoint { public int X, Y; }

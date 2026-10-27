@@ -1,6 +1,6 @@
 {
   "name": "codex-quota-unified",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "mcpServers": {
     "quota-unified": {
       "command": "./bin/CodexQuotaUnified.exe",

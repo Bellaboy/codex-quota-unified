@@ -9,6 +9,7 @@ verification/*
 !verification/stability.json
 !verification/credit-expiry.json
 !verification/hover.json
+!verification/compact-hover.json
 plugin/runtime.json
 **/bin/
 **/obj/

@@ -154,10 +154,10 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                         var key = $"{_state.Snapshot.First?.Display(now)}|{_state.Snapshot.Second?.Display(now)}|{_state.Snapshot.ResetCreditText}|{host.Dpi}|{dark}|{stale}";
                         if (key != _renderKey)
                         {
-                            _strip.SetSurface(BatteryRenderer.Render(_state.Snapshot, now, host.Dpi, dark, stale), Tooltip(now));
+                            _strip.SetSurface(BatteryRenderer.Render(_state.Snapshot, now, host.Dpi, dark, stale), _state.Snapshot.HoverRows, dark, host.Dpi);
                             _renderKey = key;
                         }
-                        else _strip.UpdateTooltip(Tooltip(now));
+                        else _strip.UpdateTooltip(_state.Snapshot.HoverRows);
                     }
                     _strip.PositionAt(_bounds);
                 }
@@ -226,26 +226,6 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
         }
     }
 
-    private string Tooltip(DateTimeOffset now)
-    {
-        string Describe(QuotaWindow? window, string name)
-        {
-            if (window is null) return $"{name}：服务未提供该额度";
-            var line = $"{window.Label}：剩余 {window.Display(now)}";
-            if (window.ResetsAt is not { } reset) return line + "；重置时间未知";
-            var span = reset - now;
-            var countdown = span <= TimeSpan.Zero ? "等待查询新额度" : span.TotalDays >= 1
-                ? $"{(int)span.TotalDays}天{span.Hours}小时" : $"{(int)span.TotalHours}小时{span.Minutes}分";
-            return $"{line}\n重置：{reset.ToLocalTime():MM-dd HH:mm}（{countdown}）";
-        }
-        var q = _state.Snapshot;
-        return $"Codex 剩余额度\n{Describe(q.First, "5h")}\n{Describe(q.Second, "周")}\n"
-            + q.ResetCreditTooltip + "\n"
-            + (q.ReadAt == DateTimeOffset.MinValue ? "正在连接…" : $"最近更新：{q.ReadAt.ToLocalTime():HH:mm:ss}")
-            + (_state.Error is not null ? $"\n{_state.Error}；虚线电池为上次读数" : "")
-            + "\n每30秒刷新；顶栏右键可立即刷新";
-    }
-
     private void WriteStatus(DateTimeOffset now)
     {
         try
@@ -265,7 +245,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                 trayVisible = false,
                 recoveryProcessId = _recovery.ProcessId, recovery = RecoveryCompanion.ReadStatus(),
                 native = _strip.InspectNativeState(), lifecycle = "codex-owned", mcpHosted = _mcp is not null,
-                displayStrategy = "mcp-owned-attached-toolwindow", version = "1.0.6", statusUpdatedUtc = now,
+                displayStrategy = "mcp-owned-attached-toolwindow", version = "1.0.7", statusUpdatedUtc = now,
                 positioning = new { strategy = "native-window-events", eventWrites = _eventPositionWrites,
                     hookEvents = _sampler.Events?.EventCount, hookErrors = _sampler.Events?.ErrorCount,
                     surfaceRenders = _strip.SurfaceRenders, nativeMoves = _strip.NativeMoves } };
