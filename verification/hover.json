@@ -1,0 +1,11 @@
+{
+  "packageVersion": "1.0.6",
+  "observedTooltipPopups": 2,
+  "minimumBackgroundAlpha": 1,
+  "layoutUnchanged": true,
+  "tooltipShowAlways": true,
+  "userConfirmedDateListVisible": true,
+  "mcpEofCleanupPassed": true,
+  "nativeTestsPassed": 44,
+  "recoveryMonitoring": true
+}

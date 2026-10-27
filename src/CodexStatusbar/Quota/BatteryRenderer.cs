@@ -12,7 +12,8 @@ internal static class BatteryRenderer
         var bitmap = new Bitmap((int)Math.Round(BatteryLayout.WidthDip * scale),
             (int)Math.Round(BatteryLayout.HeightDip * scale), PixelFormat.Format32bppPArgb);
         using var g = Graphics.FromImage(bitmap);
-        g.Clear(Color.Transparent);
+        // 分层窗口的 alpha=0 区域会鼠标穿透；1/255 的底层让文字间隙也能接收悬停。
+        g.Clear(Color.FromArgb(1, 0, 0, 0));
         g.ScaleTransform(scale, scale);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;

@@ -265,7 +265,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                 trayVisible = false,
                 recoveryProcessId = _recovery.ProcessId, recovery = RecoveryCompanion.ReadStatus(),
                 native = _strip.InspectNativeState(), lifecycle = "codex-owned", mcpHosted = _mcp is not null,
-                displayStrategy = "mcp-owned-attached-toolwindow", version = "1.0.5", statusUpdatedUtc = now,
+                displayStrategy = "mcp-owned-attached-toolwindow", version = "1.0.6", statusUpdatedUtc = now,
                 positioning = new { strategy = "native-window-events", eventWrites = _eventPositionWrites,
                     hookEvents = _sampler.Events?.EventCount, hookErrors = _sampler.Events?.ErrorCount,
                     surfaceRenders = _strip.SurfaceRenders, nativeMoves = _strip.NativeMoves } };

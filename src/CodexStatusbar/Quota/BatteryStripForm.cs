@@ -5,11 +5,13 @@ namespace CodexStatusbar.Quota;
 /// <summary>Adapted from upstream TokenStripForm's premultiplied ARGB layered-window compositor.</summary>
 internal sealed class BatteryStripForm : Form
 {
-    private readonly ToolTip _tooltip = new() { InitialDelay = 300, ReshowDelay = 100, AutoPopDelay = 25000 };
+    // 额度条始终 NOACTIVATE，默认 ShowAlways=false 会使自动提示无法显示。
+    private readonly ToolTip _tooltip = new() { ShowAlways = true, InitialDelay = 300, ReshowDelay = 100, AutoPopDelay = 25000 };
     private Bitmap? _surface;
     private string _tooltipText = "正在读取 Codex 额度…";
     internal long SurfaceRenders { get; private set; }
     internal long NativeMoves { get; private set; }
+    internal long TooltipPopups { get; private set; }
     public BatteryStripForm()
     {
         FormBorderStyle = FormBorderStyle.None;
@@ -18,6 +20,7 @@ internal sealed class BatteryStripForm : Form
         AutoScaleMode = AutoScaleMode.None;
         Text = "Codex 额度电池条";
         AccessibleName = Text;
+        _tooltip.Popup += (_, _) => TooltipPopups++;
     }
     protected override bool ShowWithoutActivation => true;
     protected override CreateParams CreateParams
@@ -76,6 +79,7 @@ internal sealed class BatteryStripForm : Form
             visible = IsWindowVisible(Handle),
             actualBounds = new IntRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top),
             owner = GetWindowLongPtr(Handle, -8).ToInt64(),
+            tooltipShowAlways = _tooltip.ShowAlways, tooltipPopups = TooltipPopups,
             renderedInkAtExpectedPosition = foundInk && WindowFromPoint(inkPoint) == Handle
         };
     }

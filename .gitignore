@@ -8,6 +8,7 @@ verification/*
 !verification/tray-fix.json
 !verification/stability.json
 !verification/credit-expiry.json
+!verification/hover.json
 plugin/runtime.json
 **/bin/
 **/obj/

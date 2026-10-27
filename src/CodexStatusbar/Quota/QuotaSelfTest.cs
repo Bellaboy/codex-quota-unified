@@ -160,10 +160,10 @@ internal static class QuotaSelfTest
             Assert(QuotaStartup.IsOurCommand("\"C:\\Tools and Apps\\电池.exe\" --watch-codex", @"C:\Tools and Apps\电池.exe"), "own startup command not recognized");
             Assert(!QuotaStartup.IsOurCommand("\"C:\\Other.exe\" --watch-codex", @"C:\Tools and Apps\电池.exe"), "unrelated startup command accepted");
         });
-        Test("render keeps background fully transparent", () =>
+        Test("render has a nearly invisible continuous hover hit surface", () =>
         {
             using var bitmap = BatteryRenderer.Render(new(new(300, 15, now.AddHours(1)), new(10080, 5, now.AddDays(1)), now, 1), now, 144, false, false);
-            Assert(bitmap.GetPixel(0, 0).A == 0 && bitmap.GetPixel(bitmap.Width - 1, 0).A == 0, "opaque backing");
+            Assert(bitmap.GetPixel(0, 0).A == 1 && bitmap.GetPixel(bitmap.Width - 1, 0).A == 1, "hover hit backing is missing or opaque");
             Assert(bitmap.Width == 600, "inventory width absent");
         });
         Test("zero reset cards is distinct from unknown inventory", () =>
