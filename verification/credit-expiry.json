@@ -1,0 +1,23 @@
+{
+  "bounds": {
+    "X": 402,
+    "Width": 400,
+    "Y": 10,
+    "Height": 26
+  },
+  "allExpiryDatesRequiredForEarliest": true,
+  "pixelComparisonDpi": 144,
+  "nativeTestsFailed": 0,
+  "tooltipListsAvailableCards": true,
+  "nativeTests": 44,
+  "expiryFormat": "MM-dd HH:mm",
+  "packageVersion": "1.0.5",
+  "mainText": "重置卡 2 张｜最早到期 MM-dd HH:mm",
+  "officialExpiryReadVerified": true,
+  "recoveryMonitoring": true,
+  "mcpLifecycleChecksPassed": true,
+  "quotaBatteryPixelDifferences": 0,
+  "expiryTimezone": "UTC+08:00",
+  "cardOutlineRemoved": true,
+  "recoveryCodeUnchanged": true
+}

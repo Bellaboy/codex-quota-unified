@@ -24,12 +24,9 @@ internal static class BatteryRenderer
         DrawBattery(g, quota.First, "5h", 0, now, readIsOld, ink, font, valueFont, format);
         DrawBattery(g, quota.Second, "周", 96, now, readIsOld, ink, font, valueFont, format);
         using var creditInk = new SolidBrush(ink);
-        using var cardPen = new Pen(readIsOld ? Color.FromArgb(145, ink) : Color.FromArgb(190, ink), 1.1f);
-        if (readIsOld) cardPen.DashStyle = DashStyle.Dash;
-        g.DrawString("重置卡", font, creditInk, new RectangleF(191, 0, 44, 26), format);
-        using var card = Rounded(new RectangleF(237, 4, 35, 18), 3);
-        g.DrawPath(cardPen, card);
-        g.DrawString(quota.ResetCreditDisplay, valueFont, creditInk, new RectangleF(237, 3.5f, 35, 19), format);
+        using var creditFormat = new StringFormat { Alignment = StringAlignment.Near,
+            LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
+        g.DrawString(quota.ResetCreditText, font, creditInk, new RectangleF(191, 0, BatteryLayout.WidthDip - 195, 26), creditFormat);
         return bitmap;
     }
 
@@ -82,8 +79,9 @@ internal static class BatteryRenderer
     {
         Directory.CreateDirectory(directory);
         var now = DateTimeOffset.UtcNow;
-        QuotaSnapshot Sample(double first, double second) => new(new(300, 100 - first, now.AddHours(3)), new(10080, 100 - second, now.AddDays(4)), now, 1);
-        using var sheet = new Bitmap(750, 280);
+        QuotaSnapshot Sample(double first, double second) => new(new(300, 100 - first, now.AddHours(3)), new(10080, 100 - second, now.AddDays(4)), now, 2,
+            new DateTimeOffset?[] { now.AddDays(1).AddMinutes(10), now.AddDays(8).AddMinutes(30) });
+        using var sheet = new Bitmap(1030, 350);
         using var canvas = Graphics.FromImage(sheet);
         canvas.Clear(Color.White);
         using var title = new Font("Microsoft YaHei UI", 10);
@@ -91,7 +89,8 @@ internal static class BatteryRenderer
             ("正常 · 透明背景", Sample(85, 95), false, false),
             ("低额度 · 橙色 / 红色", Sample(20, 10), false, false),
             ("深色模式", Sample(73, 94), true, false),
-            ("数据未知 / 刷新失败", QuotaSnapshot.Empty, false, true)
+            ("数据未知 / 刷新失败", QuotaSnapshot.Empty, false, true),
+            ("无可用卡", new QuotaSnapshot(null, null, now, 0), false, false)
         };
         for (var i = 0; i < samples.Length; i++)
         {

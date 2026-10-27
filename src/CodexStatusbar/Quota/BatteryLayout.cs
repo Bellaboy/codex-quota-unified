@@ -2,7 +2,7 @@ namespace CodexStatusbar.Quota;
 
 internal static class BatteryLayout
 {
-    public const int WidthDip = 276;
+    public const int WidthDip = 400;
     public const int HeightDip = 26;
     public static IntRect Place(IntRect help, IntRect host, uint dpi, int? captionLeft = null)
     {

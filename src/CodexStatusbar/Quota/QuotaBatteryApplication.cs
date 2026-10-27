@@ -151,7 +151,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                         var dark = _theme.Current == CodexThemeKind.Dark || _theme.Current == CodexThemeKind.Unknown
                             && (int?)Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) == 0;
                         var stale = _state.Stale(now);
-                        var key = $"{_state.Snapshot.First?.Display(now)}|{_state.Snapshot.Second?.Display(now)}|{_state.Snapshot.ResetCredits}|{host.Dpi}|{dark}|{stale}";
+                        var key = $"{_state.Snapshot.First?.Display(now)}|{_state.Snapshot.Second?.Display(now)}|{_state.Snapshot.ResetCreditText}|{host.Dpi}|{dark}|{stale}";
                         if (key != _renderKey)
                         {
                             _strip.SetSurface(BatteryRenderer.Render(_state.Snapshot, now, host.Dpi, dark, stale), Tooltip(now));
@@ -240,7 +240,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
         }
         var q = _state.Snapshot;
         return $"Codex 剩余额度\n{Describe(q.First, "5h")}\n{Describe(q.Second, "周")}\n"
-            + (q.ResetCredits is { } count ? $"可用重置权益：{count}次\n" : "")
+            + q.ResetCreditTooltip + "\n"
             + (q.ReadAt == DateTimeOffset.MinValue ? "正在连接…" : $"最近更新：{q.ReadAt.ToLocalTime():HH:mm:ss}")
             + (_state.Error is not null ? $"\n{_state.Error}；虚线电池为上次读数" : "")
             + "\n每30秒刷新；顶栏右键可立即刷新";
@@ -255,6 +255,8 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                 anchorSource = _anchorSource, lastUpdate = snapshot.ReadAt, error = _state.Error, stale = _state.Stale(now),
                 first = snapshot.First?.Display(now) ?? "--", second = snapshot.Second?.Display(now) ?? "--",
                 resetCredits = snapshot.ResetCredits, dpi = _sampler.Dpi, polling = _reading, nextRead = _nextRead,
+                resetCreditText = snapshot.ResetCreditText, resetCreditExpirations = snapshot.ResetCreditExpirations,
+                resetCreditTooltip = snapshot.ResetCreditTooltip,
                 quotaPollingSeconds = QuotaPollingSeconds,
                 updatedUtc = snapshot.ReadAt,
                 shortRemaining = snapshot.First is { Minutes: 300 } first && !first.Expired(now) ? (double?)first.Remaining : null,
@@ -263,7 +265,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                 trayVisible = false,
                 recoveryProcessId = _recovery.ProcessId, recovery = RecoveryCompanion.ReadStatus(),
                 native = _strip.InspectNativeState(), lifecycle = "codex-owned", mcpHosted = _mcp is not null,
-                displayStrategy = "mcp-owned-attached-toolwindow", version = "1.0.4", statusUpdatedUtc = now,
+                displayStrategy = "mcp-owned-attached-toolwindow", version = "1.0.5", statusUpdatedUtc = now,
                 positioning = new { strategy = "native-window-events", eventWrites = _eventPositionWrites,
                     hookEvents = _sampler.Events?.EventCount, hookErrors = _sampler.Events?.ErrorCount,
                     surfaceRenders = _strip.SurfaceRenders, nativeMoves = _strip.NativeMoves } };

@@ -47,7 +47,7 @@ internal static class QuotaSelfTest
         {
             using var strip = new BatteryStripForm();
             strip.SetSurface(BatteryRenderer.Render(QuotaSnapshot.Empty, now, 96, false, false), "test");
-            for (var i = 0; i < 120; i++) strip.PositionAt(new(200 + i, 200, 276, 26));
+            for (var i = 0; i < 120; i++) strip.PositionAt(new(200 + i, 200, BatteryLayout.WidthDip, 26));
             Assert(strip.NativeMoves == 120 && strip.SurfaceRenders == 1, "movement regenerated the surface");
         });
         QuotaSnapshot Parse(string json) { using var doc = JsonDocument.Parse(json); return QuotaParser.Parse(doc.RootElement, now); }
@@ -107,12 +107,12 @@ internal static class QuotaSelfTest
         Test("dock after Help and vertically center", () =>
         {
             var r = BatteryLayout.Place(new(270, 0, 40, 36), new(0, 0, 880, 1000), 96, 740);
-            Assert(r.Left == 322 && r.Top == 5 && r.Width == 276 && r.Height == 26, "wrong dock position or reset stock missing");
+            Assert(r.Left == 322 && r.Top == 5 && r.Width == 400 && r.Height == 26, "wrong dock position or reset stock missing");
         });
         Test("DPI scales menu gap and battery size", () =>
         {
             var r = BatteryLayout.Place(new(405, 0, 60, 54), new(0, 0, 1320, 1500), 144, 1110);
-            Assert(r.Left == 483 && r.Width == 414 && r.Height == 39, "wrong 150% scaling");
+            Assert(r.Left == 483 && r.Width == 600 && r.Height == 39, "wrong 150% scaling");
         });
         Test("narrow host hides without covering window controls", () =>
         {
@@ -164,13 +164,49 @@ internal static class QuotaSelfTest
         {
             using var bitmap = BatteryRenderer.Render(new(new(300, 15, now.AddHours(1)), new(10080, 5, now.AddDays(1)), now, 1), now, 144, false, false);
             Assert(bitmap.GetPixel(0, 0).A == 0 && bitmap.GetPixel(bitmap.Width - 1, 0).A == 0, "opaque backing");
-            Assert(bitmap.Width == 414, "inventory width absent");
+            Assert(bitmap.Width == 600, "inventory width absent");
         });
         Test("zero reset cards is distinct from unknown inventory", () =>
         {
             Assert(new QuotaSnapshot(null, null, now, 0).ResetCreditDisplay == "0", "zero hidden");
             Assert(QuotaSnapshot.Empty.ResetCreditDisplay == "--", "unknown shown as zero");
             Assert(new QuotaSnapshot(null, null, now, 3).ResetCreditDisplay == "3", "wrong available count");
+        });
+        Test("available card dates exclude used cards and show Beijing minutes", () =>
+        {
+            var earlier = new DateTimeOffset(2026, 10, 29, 0, 10, 59, TimeSpan.Zero);
+            var later = earlier.AddDays(8);
+            var snapshot = Parse(JsonSerializer.Serialize(new { rateLimitResetCredits = new { availableCount = 2,
+                credits = new[] { new { status = "used", expiresAt = earlier.AddDays(-1).ToUnixTimeSeconds() },
+                    new { status = "available", expiresAt = later.ToUnixTimeSeconds() },
+                    new { status = "available", expiresAt = earlier.ToUnixTimeSeconds() } } } }));
+            Assert(snapshot.ResetCreditText == "重置卡 2 张｜最早到期 10-29 08:10", "wrong earliest date, timezone, or minute format");
+            Assert(snapshot.ResetCreditTooltip.Contains("第 1 张：10-29 08:10 到期")
+                && snapshot.ResetCreditTooltip.Contains("第 2 张：11-06 08:10 到期"), "tooltip lost card dates or sorting");
+        });
+        Test("missing card dates never claim a known earliest expiration", () =>
+        {
+            var snapshot = Parse("""{"rateLimitResetCredits":{"availableCount":2,"credits":[{"status":"available","expiresAt":1793232659},{"status":"available"}]}}""");
+            Assert(snapshot.ResetCreditText == "重置卡 2 张｜到期未知" && snapshot.ResetCreditTooltip.Contains("第 2 张：到期未知"), "missing expiration was invented");
+        });
+        Test("partial inventory keeps authoritative count with unknown expiration", () =>
+        {
+            var snapshot = Parse("""{"rateLimitResetCredits":{"availableCount":2,"credits":[{"status":"available","expiresAt":1793232659}]}}""");
+            Assert(snapshot.ResetCreditText.EndsWith("到期未知") && snapshot.ResetCreditTooltip.Contains("另 1 张：到期未知"), "partial inventory mislabeled earliest date");
+        });
+        Test("zero cards omit expiration and invalid dates stay unknown", () =>
+        {
+            Assert(new QuotaSnapshot(null, null, now, 0).ResetCreditText == "重置卡 0 张", "zero-card UI claims expiration");
+            var snapshot = Parse("""{"rateLimitResetCredits":{"availableCount":1,"credits":[{"status":"available","expiresAt":9223372036854775807}]}}""");
+            Assert(snapshot.ResetCreditText == "重置卡 1 张｜到期未知", "invalid timestamp became an expiration");
+        });
+        Test("long credit text fits its text area at 96 DPI", () =>
+        {
+            using var bitmap = new Bitmap(1, 1);
+            using var graphics = Graphics.FromImage(bitmap);
+            using var font = new Font("Segoe UI", 11, FontStyle.Regular, GraphicsUnit.Pixel);
+            var snapshot = new QuotaSnapshot(null, null, now, 2, new DateTimeOffset?[] { now.AddDays(1), now.AddDays(2) });
+            Assert(graphics.MeasureString(snapshot.ResetCreditText, font).Width <= BatteryLayout.WidthDip - 195, "credit expiration text is clipped");
         });
         Test("credit stock change affects rendered pixels", () =>
         {
