@@ -5,9 +5,10 @@
     "survivingChildren": 0
   },
   "limits": [
-    "Recovery dispatch tested using synthetic quota-failure states; live quota was not deliberately exhausted.",
-    "Desktop plugin auto-loading was observed after a full application restart. Recovery was repaired by restarting its worker; a further full desktop restart after that repair was not performed.",
-    "UI placement was retained; no new desktop screenshot was taken in this repair."
+    "Final version uses the original MCP-owned display, as requested. Independent desktop-display experiment failed visual acceptance and was not released.",
+    "Native window visibility and unobscured ink were confirmed after MCP rollback. User has not reconfirmed drag smoothness after rollback.",
+    "Account-state invalidation passed regression; no live sign-out or sign-in was performed by the agent.",
+    "Synthetic recovery regression sent no real messages; live quota was not deliberately exhausted."
   ],
   "date": "2026-10-27",
   "recoveryTests": {
@@ -25,15 +26,17 @@
       "x": 402,
       "height": 26
     },
-    "quotaReadIntervalsSeconds": [
+    "singleRecoveryWorker": true,
+    "historicalQuotaReadIntervalsSeconds": [
       30.1365743,
       29.9209021
     ],
-    "singleRecoveryWorker": true
+    "trayIcons": 0
   },
   "nativeTests": {
     "failed": 0,
-    "passed": 34
+    "passed": 39
   },
-  "platform": "Windows x64"
+  "platform": "Windows x64",
+  "packageVersion": "1.0.4"
 }

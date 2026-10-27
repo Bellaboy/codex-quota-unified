@@ -36,6 +36,20 @@ internal static class QuotaSelfTest
             using var ready = JsonDocument.Parse("""{"method":"notifications/initialized"}""");
             Assert(server.Handle(ready.RootElement) is null && server.Initialized, "initialized notification was ignored");
         });
+        Test("account change clears cached quota before reuse", () =>
+        {
+            var state = new QuotaRefreshState();
+            state.Succeed(new(new(300, 10, now.AddHours(1)), new(10080, 10, now.AddDays(1)), now, 2));
+            state.AccountChanged();
+            Assert(state.Snapshot.First is null && state.Snapshot.Second is null && state.Stale(now), "old account quota survived");
+        });
+        Test("120 moves reuse a single rendered surface", () =>
+        {
+            using var strip = new BatteryStripForm();
+            strip.SetSurface(BatteryRenderer.Render(QuotaSnapshot.Empty, now, 96, false, false), "test");
+            for (var i = 0; i < 120; i++) strip.PositionAt(new(200 + i, 200, 276, 26));
+            Assert(strip.NativeMoves == 120 && strip.SurfaceRenders == 1, "movement regenerated the surface");
+        });
         QuotaSnapshot Parse(string json) { using var doc = JsonDocument.Parse(json); return QuotaParser.Parse(doc.RootElement, now); }
 
         Test("prefers account codex bucket over model bucket and legacy", () =>

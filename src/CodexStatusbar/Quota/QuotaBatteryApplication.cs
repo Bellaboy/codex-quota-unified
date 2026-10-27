@@ -16,6 +16,10 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
     private readonly Func<bool>? _tryClaimOverlay;
     private bool _hostPresent;
     private DateTimeOffset _nextClaim;
+    // 仅观察官方认证文件的修改时间，不读取、保存或发布认证内容。
+    private readonly string _authPath = Path.Combine(Environment.GetEnvironmentVariable("CODEX_HOME")
+        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex"), "auth.json");
+    private DateTime _authStamp;
     internal static readonly string DataDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodexQuotaUnified");
     private readonly BatteryStripForm _strip = new();
@@ -25,23 +29,22 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
     private readonly CodexQuotaClient _client = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 33 };
-    private readonly NotifyIcon _tray;
     private readonly ToolStripMenuItem _refresh;
-    private readonly HashSet<string> _alerts = new();
     private CodexWindowTarget? _target;
     private DateTimeOffset _nextDiscover, _nextRead, _nextStatus, _nextPaint;
     private IntPtr _lastForeground;
-    private bool _reading, _disposed, _alertsEnabled;
+    private bool _reading, _disposed;
     private string? _renderKey;
     private IntRect _bounds;
     private string _anchorSource = "waiting-for-codex";
-    internal bool TrayVisible => _tray.Visible;
+    internal bool TrayVisible => false;
 
     public QuotaBatteryApplication(bool renderOverlay = true, QuotaMcpServer? mcp = null, Func<bool>? tryClaimOverlay = null)
     {
         _renderOverlay = renderOverlay;
         _mcp = mcp;
         _tryClaimOverlay = tryClaimOverlay;
+        _authStamp = File.GetLastWriteTimeUtc(_authPath);
         Directory.CreateDirectory(DataDirectory);
         RecoveryCompanion.PublishCurrentRuntime();
         _ = _strip.Handle; // Install the WinForms synchronization context before async requests.
@@ -49,16 +52,9 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
         menu.Items.Add("Codex 额度与恢复").Enabled = false;
         _refresh = new ToolStripMenuItem("立即刷新", null, (_, _) => { _nextRead = DateTimeOffset.MinValue; });
         menu.Items.Add(_refresh);
-        var alerts = new ToolStripMenuItem("低额度提醒（20% / 10%）") { CheckOnClick = true };
-        alerts.CheckedChanged += (_, _) => _alertsEnabled = alerts.Checked;
-        menu.Items.Add(alerts);
         menu.Items.Add("随 Codex 启动和退出").Enabled = false;
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("退出", null, (_, _) => ExitThread());
-        // 桌面发现服务时可能很快回收临时进程。首次查询完成前不注册托盘图标，
-        // 避免进程尚在连接时被结束后留下“正在连接”的 Shell 残影。
-        _tray = new NotifyIcon { Icon = SystemIcons.Information, ContextMenuStrip = menu };
-        _tray.DoubleClick += (_, _) => _nextRead = DateTimeOffset.MinValue;
+        _strip.ContextMenuStrip = menu;
+        _strip.DoubleClick += (_, _) => _nextRead = DateTimeOffset.MinValue;
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
         if (_mcp is not null) _ = Task.Run(async () =>
@@ -78,13 +74,21 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
         var foreground = GetAncestor(GetForegroundWindow(), 2);
         if (foreground != _lastForeground || now >= _nextDiscover)
         {
+            var stamp = File.GetLastWriteTimeUtc(_authPath);
+            if (stamp != _authStamp)
+            {
+                _authStamp = stamp;
+                _state.AccountChanged();
+                _nextRead = _nextStatus = DateTimeOffset.MinValue;
+                _renderKey = null;
+            }
             _lastForeground = foreground;
             _nextDiscover = now.AddSeconds(1);
             if (CodexWindowLocator.TryGetForegroundCodexTarget(out var current))
             {
                 if (_target?.HostWindow.Handle != current.HostWindow.Handle)
                 {
-                    _sampler.Bind(current.HostWindow.Handle, _ => { });
+                    _sampler.Bind(current.HostWindow.Handle, OnHostEvent);
                     _renderKey = null;
                 }
                 _target = current;
@@ -97,7 +101,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
             if (_target is null && CodexWindowLocator.TryFindAnyCodexTarget(out var existing))
             {
                 _target = existing;
-                _sampler.Bind(existing.HostWindow.Handle, _ => { });
+                _sampler.Bind(existing.HostWindow.Handle, OnHostEvent);
             }
             _hostPresent = _target is not null && IsWindow(_target.HostWindow.Handle) && IsWindowVisible(_target.HostWindow.Handle)
                 || CodexWindowLocator.HasLiveCodexWindow();
@@ -166,22 +170,41 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
         }
     }
 
+    private long _eventPositionWrites;
+    private void OnHostEvent(HostWindowEventKind kind)
+    {
+        // 回调就在 UI 线程。只采样原生几何并平移已有合成面，不排队、不读额度、不重绘像素。
+        if (_disposed || _target is null || kind is not (HostWindowEventKind.LocationChange
+            or HostWindowEventKind.MovesizeEnd or HostWindowEventKind.MinimizeEnd)) return;
+        if (GetAncestor(GetForegroundWindow(), 2) != _target.HostWindow.Handle || IsIconic(_target.HostWindow.Handle)) return;
+        if (!_sampler.TrySample(out _)) return;
+        _sampler.Commit();
+        if (!_sampler.TryBuildHostInfo(out var host)) return;
+        var anchor = HelpMenuAnchor.Measure(host);
+        var bounds = BatteryLayout.Place(anchor.Help, host.WindowBounds, host.Dpi, host.CaptionButtonBounds?.Left);
+        if (bounds.IsEmpty) { _strip.Hide(); return; }
+        _bounds = bounds;
+        _strip.PositionAt(bounds);
+        _eventPositionWrites++;
+    }
+
     private async Task RefreshAsync()
     {
         _reading = true;
         _refresh.Enabled = false;
+        var authStamp = File.GetLastWriteTimeUtc(_authPath);
         try
         {
             var quota = await Task.Run(() => _client.ReadAsync(_shutdown.Token));
-        if (_disposed) return;
-            _state.Succeed(quota);
-            foreach (var window in new[] { quota.First, quota.Second }.OfType<QuotaWindow>())
+            if (_disposed) return;
+            if (File.GetLastWriteTimeUtc(_authPath) != authStamp)
             {
-                var threshold = window.Remaining <= 10 ? 10 : window.Remaining <= 20 ? 20 : 0;
-                if (_alertsEnabled && threshold > 0 && !window.Expired(DateTimeOffset.UtcNow)
-                    && _alerts.Add($"{window.Minutes}:{window.ResetsAt}:{threshold}"))
-                    _tray.ShowBalloonTip(5000, "Codex 额度提醒", $"{window.Label} 剩余 {window.Display(DateTimeOffset.UtcNow)}", ToolTipIcon.Warning);
+                _state.AccountChanged();
+                _nextRead = DateTimeOffset.MinValue;
+                return;
             }
+            _state.Succeed(quota);
+
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
         catch (Exception e) when (e is IOException or TimeoutException or System.ComponentModel.Win32Exception or JsonException or UnauthorizedAccessException)
@@ -198,9 +221,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                 _nextPaint = DateTimeOffset.MinValue;
                 _nextStatus = DateTimeOffset.MinValue;
                 var now = DateTimeOffset.UtcNow;
-                var trayText = $"Codex · {_state.Snapshot.First?.Label ?? "5h"} {_state.Snapshot.First?.Display(now) ?? "--"} · {_state.Snapshot.Second?.Label ?? "周"} {_state.Snapshot.Second?.Display(now) ?? "--"} · 重置卡 {_state.Snapshot.ResetCreditDisplay}{(_state.Stale(now) ? " · 待刷新" : "")}";
-                _tray.Text = trayText.Length <= 63 ? trayText : trayText[..63];
-                _tray.Visible = true;
+
             }
         }
     }
@@ -222,7 +243,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
             + (q.ResetCredits is { } count ? $"可用重置权益：{count}次\n" : "")
             + (q.ReadAt == DateTimeOffset.MinValue ? "正在连接…" : $"最近更新：{q.ReadAt.ToLocalTime():HH:mm:ss}")
             + (_state.Error is not null ? $"\n{_state.Error}；虚线电池为上次读数" : "")
-            + "\n每30秒刷新；托盘右键可立即刷新或退出";
+            + "\n每30秒刷新；顶栏右键可立即刷新";
     }
 
     private void WriteStatus(DateTimeOffset now)
@@ -238,10 +259,14 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
                 updatedUtc = snapshot.ReadAt,
                 shortRemaining = snapshot.First is { Minutes: 300 } first && !first.Expired(now) ? (double?)first.Remaining : null,
                 weekRemaining = snapshot.Second is { Minutes: 10080 } second && !second.Expired(now) ? (double?)second.Remaining : null,
-                lowQuotaAlertsEnabled = _alertsEnabled,
-                trayVisible = _tray.Visible,
+                lowQuotaAlertsEnabled = false,
+                trayVisible = false,
                 recoveryProcessId = _recovery.ProcessId, recovery = RecoveryCompanion.ReadStatus(),
-                native = _strip.InspectNativeState(), lifecycle = "codex-owned", mcpHosted = _mcp is not null };
+                native = _strip.InspectNativeState(), lifecycle = "codex-owned", mcpHosted = _mcp is not null,
+                displayStrategy = "mcp-owned-attached-toolwindow", version = "1.0.4", statusUpdatedUtc = now,
+                positioning = new { strategy = "native-window-events", eventWrites = _eventPositionWrites,
+                    hookEvents = _sampler.Events?.EventCount, hookErrors = _sampler.Events?.ErrorCount,
+                    surfaceRenders = _strip.SurfaceRenders, nativeMoves = _strip.NativeMoves } };
             File.WriteAllText(Path.Combine(DataDirectory, "status.tmp"), JsonSerializer.Serialize(status, new JsonSerializerOptions { WriteIndented = true }));
             File.Move(Path.Combine(DataDirectory, "status.tmp"), Path.Combine(DataDirectory, "status.json"), overwrite: true);
         }
@@ -258,9 +283,7 @@ internal sealed class QuotaBatteryApplication : ApplicationContext
         _timer.Stop();
         _timer.Dispose();
         _sampler.Dispose();
-        _tray.Visible = false;
-        _tray.ContextMenuStrip?.Dispose();
-        _tray.Dispose();
+        _strip.ContextMenuStrip?.Dispose();
         _strip.Dispose();
         _stop.Dispose();
         base.ExitThreadCore();

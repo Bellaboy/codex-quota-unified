@@ -34,4 +34,5 @@ codex plugin marketplace add $PSScriptRoot --json
 if ($LASTEXITCODE -ne 0) { throw '统一插件市场注册失败。' }
 codex plugin add 'codex-quota-unified@codex-unified-tools' --json
 if ($LASTEXITCODE -ne 0) { throw '统一插件安装失败。' }
+& (Join-Path $PSScriptRoot 'scripts/clear-legacy-tray.ps1')
 Write-Output '已安装 Codex 额度与恢复。额度每30秒检测，已保留旧去重记录。'

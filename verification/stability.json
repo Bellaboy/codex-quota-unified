@@ -1,0 +1,35 @@
+{
+  "mcpDiscoveryVerified": true,
+  "packageVersion": "1.0.4",
+  "recoveryMonitoring": true,
+  "mcpEofCleanupVerified": true,
+  "nativeTests": 39,
+  "nativeInkAtExpectedPositionVerified": true,
+  "independentStrategyReleased": false,
+  "movement": {
+    "userVisualSmoothnessConfirmed": false,
+    "translationTestUpdates": 120,
+    "translationTestRenderedSurfaces": 1,
+    "strategy": "native-window-events"
+  },
+  "finalStrategy": "MCP owned, Codex-window owner attached",
+  "recoveryTests": 35,
+  "nativeVisibleVerified": true,
+  "uiBounds": {
+    "Width": 276,
+    "Y": 10,
+    "X": 402,
+    "Height": 26
+  },
+  "legacyOrphansRemoved": 1,
+  "independentStrategyRejectedByUser": true,
+  "realMessagesSentByTests": 0,
+  "trayIconsCreated": 0,
+  "accountChange": {
+    "clearsOldQuotaRegressionPassed": true,
+    "credentialContentsRead": false,
+    "liveAccountSwitchPerformedByAgent": false
+  },
+  "realQuotaExhaustionTested": false,
+  "quotaPollingSeconds": 30
+}

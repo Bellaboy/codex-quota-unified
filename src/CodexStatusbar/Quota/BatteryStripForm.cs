@@ -8,6 +8,8 @@ internal sealed class BatteryStripForm : Form
     private readonly ToolTip _tooltip = new() { InitialDelay = 300, ReshowDelay = 100, AutoPopDelay = 25000 };
     private Bitmap? _surface;
     private string _tooltipText = "正在读取 Codex 额度…";
+    internal long SurfaceRenders { get; private set; }
+    internal long NativeMoves { get; private set; }
     public BatteryStripForm()
     {
         FormBorderStyle = FormBorderStyle.None;
@@ -33,6 +35,7 @@ internal sealed class BatteryStripForm : Form
     }
     public void SetSurface(Bitmap surface, string tooltip)
     {
+        SurfaceRenders++;
         var old = _surface;
         _surface = surface;
         old?.Dispose();
@@ -47,12 +50,15 @@ internal sealed class BatteryStripForm : Form
     }
     public void PositionAt(IntRect rect)
     {
-        if (Bounds != rect.ToRectangle())
-        {
-            Bounds = rect.ToRectangle();
-            Blit();
-        }
-        if (!Visible) { Show(); Blit(); }
+        var moved = Bounds != rect.ToRectangle();
+        var resized = Width != rect.Width || Height != rect.Height;
+        var showing = !Visible;
+        if (showing) Show();
+        // 跟随 MCP 所属 Codex owner 的层级；平移只复用已有表面，不抢其他应用的置顶顺序。
+        if (moved && !SetWindowPos(Handle, IntPtr.Zero, rect.X, rect.Y, rect.Width, rect.Height, 0x0014))
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        if (moved) NativeMoves++;
+        if (showing || resized) Blit();
     }
     public object InspectNativeState()
     {
@@ -108,6 +114,7 @@ internal sealed class BatteryStripForm : Form
     [StructLayout(LayoutKind.Sequential)] private struct NativeRect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential, Pack = 1)] private struct Blend { public byte Op, Flags, Alpha, Format; }
     [DllImport("user32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dc, ref NativePoint pt, ref NativeSize size, IntPtr src, ref NativePoint origin, int key, ref Blend blend, int flags);
+    [DllImport("user32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
     [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleDC(IntPtr dc);
